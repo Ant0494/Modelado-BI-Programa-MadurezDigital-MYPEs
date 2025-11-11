@@ -292,16 +292,7 @@ GO
 	
 	-- Nota: valores > 100
 	
-	SELECT 
-		ANALISIS_DE_DATOS, 
-		TRY_CAST(REPLACE(ANALISIS_DE_DATOS, ',', '.') AS FLOAT) AS Score_Porcentaje
-	FROM DatosBrutos_RutaDigital
-	WHERE
-    TRY_CAST(REPLACE(ANALISIS_DE_DATOS, ',', '.') AS FLOAT) > 100 -- Buscamos valores que superan el 100% (escala 0-10000)
-    OR TRY_CAST(REPLACE(ANALISIS_DE_DATOS, ',', '.') AS FLOAT) < 0;
 	
-	-- Nota: valores > 100
-
 	SELECT 
 		ANALISIS_DE_DATOS, 
 		TRY_CAST(REPLACE(ANALISIS_DE_DATOS, ',', '.') AS FLOAT) AS Score_Porcentaje
@@ -333,7 +324,7 @@ GO
 	-- Nota: valores > 100
 GO
 
-DROP PROCEDURE sp_CargarDataMart
+
 
 --7. CREACION DE SP PARA LA EJECUCION DE LIMPIZA, NORMALIZACION E INSERCION DE DATOS A LA TABLA DE HECHOS
 
