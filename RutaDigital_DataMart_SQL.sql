@@ -1,0 +1,530 @@
+
+--1. Creamos una base de datos donde trabajar, indicando la ruta de los archivos fisicos 
+
+DROP DATABASE RutaDigital
+USE MASTER
+
+CREATE DATABASE RutaDigital
+ON PRIMARY(
+NAME = RutaDigitalData,
+FILENAME = 'C:\SQLData\EFSRTIII\RutaDigitalData.mdf',
+SIZE = 100MB,
+MAXSIZE = 1024MB,
+FILEGROWTH = 50MB
+)
+LOG ON(
+NAME = RutaDigitalDataLog,
+FILENAME = 'C:\SQLData\EFSRTIII\RutaDigitalData.ldf',
+SIZE = 50MB,
+MAXSIZE = 512MB,
+FILEGROWTH = 25MB
+)
+
+USE RutaDigital
+
+
+-- 2. CREACION DE LAS TABLAS Y DIMENSIONES
+
+CREATE TABLE dim_Ubicacion(
+ID_Ubicacion INT IDENTITY(1,1) PRIMARY KEY,
+Ubigeo VARCHAR (6),
+Departamento VARCHAR (50),
+Provincia  VARCHAR (50),
+Distrito VARCHAR (50)
+)
+
+CREATE TABLE dim_CIIU(
+ID_CIIU INT IDENTITY(1,1) PRIMARY KEY,
+CIIU CHAR(50),
+Descripcion_CIIU VARCHAR(50)
+)
+
+CREATE TABLE dim_Tiempo (
+ID_Tiempo INT IDENTITY(1,1) PRIMARY KEY,
+Fecha DATE,
+Dia INT,
+Mes INT,
+NombreMes VARCHAR(20),
+Anio INT,
+Trimestre INT,
+NombreDia VARCHAR(15)
+)
+
+CREATE TABLE dim_NivelDigitalizacion(
+ID_NivelDigitalizacion INT IDENTITY(1,1) PRIMARY KEY,
+NivelDigitalizacion VARCHAR(50)
+)
+
+CREATE TABLE dim_TipoEmpresa(
+ID_TipoEmpresa INT IDENTITY(1,1) PRIMARY KEY,
+TipoEmpresa VARCHAR(50)
+)
+
+
+
+--3.  CREACION DE TABLA DE HECHOS:
+
+CREATE TABLE hechos_Digitalizacion (
+ID_Hecho INT IDENTITY(1,1) PRIMARY KEY,
+
+--Claves Tiempo
+ID_Tiempo_Registro INT NOT NULL,
+ID_Tiempo_Inicio INT,
+ID_Tiempo_Fin INT,
+
+--Claves dimensionales restantes
+ID_CIIU INT NOT NULL,
+ID_TipoEmpresa INT,
+ID_Ubicacion INT,
+ID_NivelDigitalizacion INT,
+
+--Métricas
+DIG_GENERAL DECIMAL(5, 2),
+GESTION_EMPRESARIAL DECIMAL(5, 2),
+COMERCIO_ELECTRONICO DECIMAL(5, 2),
+ANALISIS_DE_DATOS DECIMAL(5, 2),
+MARKETING_DIGITAL DECIMAL(5, 2),
+MEDIOS_DE_PAGO DECIMAL(5, 2),
+FINANZAS DECIMAL(5, 2),
+TIEMPO_DEMORA_MINUTOS INT,
+
+FOREIGN KEY (ID_Tiempo_Registro) REFERENCES dim_Tiempo(ID_Tiempo),
+FOREIGN KEY (ID_Tiempo_Inicio) REFERENCES dim_Tiempo(ID_Tiempo),
+FOREIGN KEY (ID_Tiempo_Fin) REFERENCES dim_Tiempo(ID_Tiempo),
+
+FOREIGN KEY (ID_CIIU) REFERENCES dim_CIIU(ID_CIIU),
+FOREIGN KEY (ID_TipoEmpresa) REFERENCES dim_TipoEmpresa(ID_TipoEmpresa),
+FOREIGN KEY (ID_Ubicacion) REFERENCES dim_Ubicacion(ID_Ubicacion),
+FOREIGN KEY (ID_NivelDigitalizacion) REFERENCES dim_NivelDigitalizacion(ID_NivelDigitalizacion)
+)
+
+GO
+
+SELECT*FROM hechos_Digitalizacion
+GO
+
+--4. CREACION DE LA TABLA STAGING PARA RECEPCION DE DATOS DE RUTADIGITAL2021al2024.csv
+
+
+CREATE TABLE DatosBrutos_RutaDigital(
+ANIO VARCHAR(4),
+CIIU VARCHAR(10),
+DESCRIPCION_CIIU VARCHAR (255),
+RAZON_SOCIAL_ANONIMIZADA VARCHAR (100),
+TIPO VARCHAR(100),
+DEPARTAMENTO VARCHAR(100),
+PROVINCIA VARCHAR(50),
+DISTRITO VARCHAR(50),
+UBIGEO VARCHAR(100),
+NIVEL_DIGITALIZACION VARCHAR(50),
+
+DIG_GENERAL VARCHAR(10),
+GESTION_EMPRESARIAL VARCHAR(10),
+COMERCIO_ELECTRONICO VARCHAR(10),
+ANALISIS_DE_DATOS VARCHAR(10),
+MARKETING_DIGITAL VARCHAR(10),
+MEDIOS_DE_PAGO VARCHAR(10),
+FINANZAS VARCHAR(10),
+
+FECHA_INICIO VARCHAR(8),
+FECHA_FIN VARCHAR(8),
+TIEMPO_DEMORA_MINUTOS INT,
+FECHA_REGISTRO  VARCHAR(8),
+AUT_PUBLICIDAD VARCHAR(20),
+FECHA_PUB_PNDA VARCHAR(50)
+)
+
+
+
+-- 5. CARGA DE DATOS DESDE CSV (RUTADIGITAL2021al2024.csv)
+
+BULK INSERT DatosBrutos_RutaDigital 
+FROM 'C:\Users\Antonio\Mi unidad\Antonio\Proyectos\Portafolio\RutaDigital\RUTADIGITAL2021al2024.csv'
+WITH
+(
+    FIELDTERMINATOR = '|',   -- Delimitador: pipe
+    ROWTERMINATOR = '0x0a',  -- Carácter de nueva línea (estándar para la mayoría de archivos)
+    FIRSTROW = 2             -- La primera fila es encabezado
+);
+GO
+
+SELECT*FROM DatosBrutos_RutaDigital
+GO
+
+--6 LIMPIEZA DE DATOS
+
+--6.1 Diagnóstico de Dimensiones Categóricas (Texto)
+
+---- A. DIMENSIÓN TIPO_EMPRESA (Columna TIPO)
+	SELECT 
+		TIPO, 
+		LEN(TIPO) AS LongitudBruta,
+		LEN(TRIM(TIPO)) AS LongitudLimpia,
+		COUNT(*) AS Frecuencia
+	FROM DatosBrutos_RutaDigital
+	GROUP BY TIPO
+	ORDER BY Frecuencia DESC;
+
+	--Nota: Sin observaciones
+
+---- B. DIMENSIÓN NIVEL_DIGITALIZACION
+	SELECT 
+		NIVEL_DIGITALIZACION, 
+		COUNT(*) AS Frecuencia
+	FROM DatosBrutos_RutaDigital
+	GROUP BY NIVEL_DIGITALIZACION
+	ORDER BY Frecuencia DESC;
+
+	--Nota: Corregir B+ísico por Básico
+
+---- C. DIMENSIÓN CIIU (Clave y Descripción)
+	SELECT 
+		CIIU, 
+		DESCRIPCION_CIIU, 
+		COUNT(*) AS Frecuencia
+	FROM DatosBrutos_RutaDigital
+	GROUP BY CIIU, DESCRIPCION_CIIU
+	ORDER BY CIIU DESC;
+
+	SELECT 
+    'Valores Nulos (NULL)' AS Tipo_Vacio,
+    COUNT(*) AS Frecuencia
+	FROM DatosBrutos_RutaDigital
+	WHERE 
+		CIIU IS NULL
+	
+	--Nota: 3 CIIU vacíos
+
+---- D. DIAGNÓSTICO DE UBICACIÓN (UBIGEO y DEPARTAMENTO)
+	SELECT 
+		UBIGEO, 
+		DEPARTAMENTO, 
+		COUNT(*) AS Frecuencia
+	FROM DatosBrutos_RutaDigital
+	GROUP BY UBIGEO, DEPARTAMENTO
+	ORDER BY UBIGEO;
+
+	
+	SELECT 
+		DISTINCT DEPARTAMENTO, 
+		COUNT(*) AS Cantidad 
+	FROM DatosBrutos_RutaDigital
+	GROUP BY DEPARTAMENTO
+	ORDER BY DEPARTAMENTO;
+
+	--Nota: Sin observaciones
+
+	SELECT 
+		DISTINCT PROVINCIA, 
+		COUNT(*) AS Cantidad 
+	FROM DatosBrutos_RutaDigital
+	GROUP BY PROVINCIA
+	ORDER BY PROVINCIA;
+
+	--Nota: Corregir CA+æETE por CAÑETE, FERRE+æAFE por FERREÑAFE, MARA+æON por MARAÑON,
+	-- DATEM DEL MARA+æON por DATEM DEL MARAÑON
+
+	SELECT 
+		DISTINCT DISTRITO, 
+		COUNT(*) AS Cantidad 
+	FROM DatosBrutos_RutaDigital
+	GROUP BY DISTRITO
+	ORDER BY DISTRITO;
+
+	--Nota: Corregir BA+æOS por BAÑOS, BRE+æA por BREÑA, CORONEL CASTA+æEDA por  CORONEL CASTAÑEDA
+	--ENCA+æADA por ENCAÑADA, FERRE+æAFE por FERREÑAFE, I+æAPARI por IÑAPARI, LA TINGUI+æA por LA TINGUIÑA,
+	-- LOS BA+æOS DEL INCA por LOS BAÑOS DEL INCA, NU+æOA por NUÑOA, PARI+æAS por PARIÑAS SA+æA por SAÑA,
+	-- SAN VICENTE DE CA+æETE por SAN VICENTE DE CAÑETE
+
+
+--6.2 Diagnóstico de Faltantes (NULLs / Cadenas Vacías)
+
+---- A. IDENTIFICAR VALORES FALTANTES (NULLs o Cadenas Vacías)
+	SELECT 
+		SUM(CASE WHEN TRIM(TIPO) = '' OR TIPO IS NULL THEN 1 ELSE 0 END) AS Faltantes_TIPO,
+		SUM(CASE WHEN TRIM(UBIGEO) = '' OR UBIGEO IS NULL THEN 1 ELSE 0 END) AS Faltantes_UBIGEO,
+		SUM(CASE WHEN FECHA_REGISTRO IS NULL THEN 1 ELSE 0 END) AS Faltantes_FECHA,
+		SUM(CASE WHEN TIEMPO_DEMORA_MINUTOS IS NULL THEN 1 ELSE 0 END) AS Faltantes_TIEMPO_DEMORA
+	FROM DatosBrutos_RutaDigital;
+	-- Nota: sin observaciones
+
+--6.3 Diagnóstico de Formato y Outliers (Fechas y Scores)
+
+---- A. DIAGNÓSTICO DE FECHAS INVÁLIDAS (Para DIM_TIEMPO)
+	SELECT 
+		DISTINCT FECHA_REGISTRO, 
+		COUNT(*) AS Frecuencia
+	FROM DatosBrutos_RutaDigital
+	WHERE TRY_CONVERT(DATE, FECHA_REGISTRO) IS NULL -- Busca valores que NO se pueden convertir a fecha
+	GROUP BY FECHA_REGISTRO;
+	
+	--Nota: sin observaciones
+
+---- B. DIAGNÓSTICO DE SCORES (Outliers)
+
+	SELECT 
+		DIG_GENERAL, 
+		TRY_CAST(REPLACE(DIG_GENERAL, ',', '.') AS FLOAT) AS Score_Porcentaje
+	FROM DatosBrutos_RutaDigital
+	WHERE
+    TRY_CAST(REPLACE(DIG_GENERAL, ',', '.') AS FLOAT) > 100 -- Buscamos valores que superan el 100%
+    OR TRY_CAST(REPLACE(DIG_GENERAL, ',', '.') AS FLOAT) < 0;
+	
+	-- Nota: sin obervaciones
+
+	SELECT 
+		GESTION_EMPRESARIAL, 
+		TRY_CAST(REPLACE(GESTION_EMPRESARIAL, ',', '.') AS FLOAT) AS Score_Porcentaje
+	FROM DatosBrutos_RutaDigital
+	WHERE
+    TRY_CAST(REPLACE(GESTION_EMPRESARIAL, ',', '.') AS FLOAT) > 100 -- Buscamos valores que superan el 100% (escala 0-10000)
+    OR TRY_CAST(REPLACE(GESTION_EMPRESARIAL, ',', '.') AS FLOAT) < 0;
+	
+	-- Nota: valores > 100
+
+	SELECT 
+		COMERCIO_ELECTRONICO, 
+		TRY_CAST(REPLACE(COMERCIO_ELECTRONICO, ',', '.') AS FLOAT) AS Score_Porcentaje
+	FROM DatosBrutos_RutaDigital
+	WHERE
+    TRY_CAST(REPLACE(COMERCIO_ELECTRONICO, ',', '.') AS FLOAT) > 100 -- Buscamos valores que superan el 100% (escala 0-10000)
+    OR TRY_CAST(REPLACE(COMERCIO_ELECTRONICO, ',', '.') AS FLOAT) < 0;
+	
+	-- Nota: valores > 100
+	
+	SELECT 
+		ANALISIS_DE_DATOS, 
+		TRY_CAST(REPLACE(ANALISIS_DE_DATOS, ',', '.') AS FLOAT) AS Score_Porcentaje
+	FROM DatosBrutos_RutaDigital
+	WHERE
+    TRY_CAST(REPLACE(ANALISIS_DE_DATOS, ',', '.') AS FLOAT) > 100 -- Buscamos valores que superan el 100% (escala 0-10000)
+    OR TRY_CAST(REPLACE(ANALISIS_DE_DATOS, ',', '.') AS FLOAT) < 0;
+	
+	-- Nota: valores > 100
+
+	SELECT 
+		ANALISIS_DE_DATOS, 
+		TRY_CAST(REPLACE(ANALISIS_DE_DATOS, ',', '.') AS FLOAT) AS Score_Porcentaje
+	FROM DatosBrutos_RutaDigital
+	WHERE
+    TRY_CAST(REPLACE(ANALISIS_DE_DATOS, ',', '.') AS FLOAT) > 100 -- Buscamos valores que superan el 100% (escala 0-10000)
+    OR TRY_CAST(REPLACE(ANALISIS_DE_DATOS, ',', '.') AS FLOAT) < 0;
+	
+	-- Nota: valores > 100
+
+	SELECT 
+		MARKETING_DIGITAL, 
+		TRY_CAST(REPLACE(MARKETING_DIGITAL, ',', '.') AS FLOAT) AS Score_Porcentaje
+	FROM DatosBrutos_RutaDigital
+	WHERE
+    TRY_CAST(REPLACE(MARKETING_DIGITAL, ',', '.') AS FLOAT) > 100 -- Buscamos valores que superan el 100% (escala 0-10000)
+    OR TRY_CAST(REPLACE(MARKETING_DIGITAL, ',', '.') AS FLOAT) < 0;
+	
+	-- Nota: sin observaciones
+
+	SELECT 
+		MEDIOS_DE_PAGO, 
+		TRY_CAST(REPLACE(MEDIOS_DE_PAGO, ',', '.') AS FLOAT) AS Score_Porcentaje
+	FROM DatosBrutos_RutaDigital
+	WHERE
+    TRY_CAST(REPLACE(MEDIOS_DE_PAGO, ',', '.') AS FLOAT) > 100 -- Buscamos valores que superan el 100% (escala 0-10000)
+    OR TRY_CAST(REPLACE(MEDIOS_DE_PAGO, ',', '.') AS FLOAT) < 0;
+	
+	-- Nota: valores > 100
+GO
+
+DROP PROCEDURE sp_CargarDataMart
+
+--7. CREACION DE SP PARA LA EJECUCION DE LIMPIZA, NORMALIZACION E INSERCION DE DATOS A LA TABLA DE HECHOS
+
+CREATE PROCEDURE sp_CargarDataMart
+AS
+BEGIN
+	SET NOCOUNT ON;
+
+	BEGIN TRY
+
+		BEGIN TRANSACTION;
+
+		--CARGANDO DIMENSIONES
+
+		INSERT INTO dim_Ubicacion (Ubigeo,Departamento,Provincia,Distrito)
+		SELECT DISTINCT 
+		UPPER(TRIM(UBIGEO)),
+		UPPER(TRIM(DEPARTAMENTO)),
+		UPPER(TRIM(REPLACE(PROVINCIA,'+æ','Ñ'))),
+		UPPER(TRIM(REPLACE(DISTRITO,'+æ','Ñ')))
+		FROM
+		DatosBrutos_RutaDigital
+
+
+
+		SET IDENTITY_INSERT dim_CIIU ON;
+		INSERT INTO dim_CIIU (ID_CIIU, CIIU, Descripcion_CIIU)
+		VALUES (-1, 'N/A', 'DESCONOCIDO O NO APLICA'); -- 
+		SET IDENTITY_INSERT dim_CIIU OFF;
+
+		INSERT INTO dim_CIIU(CIIU,Descripcion_CIIU)
+		SELECT DISTINCT 
+		UPPER(TRIM(CIIU)),
+		UPPER(TRIM(DESCRIPCION_CIIU))
+		FROM
+		DatosBrutos_RutaDigital T1
+		WHERE TRIM(CIIU) IS NOT NULL AND TRIM(T1.CIIU) <> '';
+
+
+	
+		INSERT INTO dim_TipoEmpresa(TipoEmpresa)
+		SELECT DISTINCT 
+		UPPER(TRIM(TIPO))
+		FROM
+		DatosBrutos_RutaDigital
+		WHERE TRIM(CIIU) IS NOT NULL AND TRIM(CIIU) <> '';
+
+
+	
+		-- Carga dim_Tiempo (Conversión Segura de Fechas)
+		WITH UniqueDates AS (
+			SELECT TRY_CONVERT(DATE, FECHA_REGISTRO) AS ValidDate FROM DatosBrutos_RutaDigital
+			UNION
+			SELECT TRY_CONVERT(DATE, FECHA_INICIO) AS ValidDate FROM DatosBrutos_RutaDigital
+			UNION
+			SELECT TRY_CONVERT(DATE, FECHA_FIN) AS ValidDate FROM DatosBrutos_RutaDigital
+			UNION
+			SELECT TRY_CONVERT(DATE, FECHA_PUB_PNDA) AS ValidDate FROM DatosBrutos_RutaDigital
+		)
+		INSERT INTO dim_Tiempo (Fecha, Dia, Mes, NombreMes, Anio, Trimestre, NombreDia)
+		SELECT  
+			T.ValidDate,
+			DAY(T.ValidDate) AS Dia,
+			MONTH(T.ValidDate) AS Mes,
+			DATENAME(MONTH, T.ValidDate) AS NombreMes,
+			YEAR(ValidDate) AS Anio,
+			DATEPART(QUARTER, ValidDate) AS Trimestre,
+			DATENAME(WEEKDAY, ValidDate) AS NombreDia 
+		FROM UniqueDates T
+		WHERE T.ValidDate IS NOT NULL
+
+
+
+		INSERT INTO dim_NivelDigitalizacion(NivelDigitalizacion)
+		SELECT DISTINCT 
+			UPPER(TRIM(REPLACE(NIVEL_DIGITALIZACION,'+í','á')))
+		FROM
+		DatosBrutos_RutaDigital
+		WHERE TRIM(NIVEL_DIGITALIZACION) IS NOT NULL AND TRIM(NIVEL_DIGITALIZACION) <> ''
+
+
+		--- CARGANDO TABLA DE HECHOS (APLICACION DE REGLAS DE NEGOCIO)
+
+		INSERT INTO hechos_Digitalizacion (ID_Tiempo_Registro, ID_Tiempo_Inicio,
+		ID_Tiempo_Fin,ID_CIIU,ID_TipoEmpresa,ID_Ubicacion,ID_NivelDigitalizacion,
+		DIG_GENERAL,GESTION_EMPRESARIAL,COMERCIO_ELECTRONICO,ANALISIS_DE_DATOS,
+		MARKETING_DIGITAL,MEDIOS_DE_PAGO,FINANZAS,TIEMPO_DEMORA_MINUTOS)
+	
+		SELECT
+		DT_Reg.ID_Tiempo AS ID_Tiempo_Registro,
+		DT_Ini.ID_Tiempo AS ID_Tiempo_Inicio,
+		DT_Fin.ID_Tiempo AS ID_Tiempo_Fin,
+
+		COALESCE(DC.ID_CIIU,-1),
+		DTE.ID_TipoEmpresa,
+		DU.ID_Ubicacion,
+		DND.ID_NivelDigitalizacion,
+
+		--Scores normalizados
+		CASE
+				WHEN TRY_CONVERT(DECIMAL(5,2), REPLACE(T1.DIG_GENERAL,',', '.')) > 100.00 THEN 100.00
+				WHEN TRY_CONVERT(DECIMAL(5,2), REPLACE(T1.DIG_GENERAL,',', '.')) < 0.00 THEN 0.00
+				ELSE TRY_CONVERT(DECIMAL(5,2), REPLACE(T1.DIG_GENERAL,',', '.'))
+			END,
+
+			CASE
+				WHEN TRY_CONVERT(DECIMAL(5,2), REPLACE(T1.GESTION_EMPRESARIAL,',', '.')) > 100.00 THEN 100.00
+				WHEN TRY_CONVERT(DECIMAL(5,2), REPLACE(T1.GESTION_EMPRESARIAL,',', '.')) < 0.00 THEN 0.00
+				ELSE TRY_CONVERT(DECIMAL(5,2), REPLACE(T1.GESTION_EMPRESARIAL,',', '.'))
+			END,
+			
+			CASE
+				WHEN TRY_CONVERT(DECIMAL(5,2), REPLACE(T1.COMERCIO_ELECTRONICO,',', '.')) > 100.00 THEN 100.00
+				WHEN TRY_CONVERT(DECIMAL(5,2), REPLACE(T1.COMERCIO_ELECTRONICO,',', '.')) < 0.00 THEN 0.00
+				ELSE TRY_CONVERT(DECIMAL(5,2), REPLACE(T1.COMERCIO_ELECTRONICO,',', '.'))
+			END,
+            
+            -- Los demás CASE de scores siguen la misma estructura TRY_CONVERT...
+			CASE
+				WHEN TRY_CONVERT(DECIMAL(5,2), REPLACE(T1.ANALISIS_DE_DATOS,',', '.')) > 100.00 THEN 100.00
+				WHEN TRY_CONVERT(DECIMAL(5,2), REPLACE(T1.ANALISIS_DE_DATOS,',', '.')) < 0.00 THEN 0.00
+				ELSE TRY_CONVERT(DECIMAL(5,2), REPLACE(T1.ANALISIS_DE_DATOS,',', '.'))
+			END,
+
+			CASE
+				WHEN TRY_CONVERT(DECIMAL(5,2), REPLACE(T1.MARKETING_DIGITAL,',', '.')) > 100.00 THEN 100.00
+				WHEN TRY_CONVERT(DECIMAL(5,2), REPLACE(T1.MARKETING_DIGITAL,',', '.')) < 0.00 THEN 0.00
+				ELSE TRY_CONVERT(DECIMAL(5,2), REPLACE(T1.MARKETING_DIGITAL,',', '.'))
+			END,
+
+			CASE
+				WHEN TRY_CONVERT(DECIMAL(5,2), REPLACE(T1.MEDIOS_DE_PAGO,',', '.')) > 100.00 THEN 100.00
+				WHEN TRY_CONVERT(DECIMAL(5,2), REPLACE(T1.MEDIOS_DE_PAGO,',', '.')) < 0.00 THEN 0.00
+				ELSE TRY_CONVERT(DECIMAL(5,2), REPLACE(T1.MEDIOS_DE_PAGO,',', '.'))
+			END,
+
+			CASE
+				WHEN TRY_CONVERT(DECIMAL(5,2), REPLACE(T1.FINANZAS,',', '.')) > 100.00 THEN 100.00
+				WHEN TRY_CONVERT(DECIMAL(5,2), REPLACE(T1.FINANZAS,',', '.')) < 0.00 THEN 0.00
+				ELSE TRY_CONVERT(DECIMAL(5,2), REPLACE(T1.FINANZAS,',', '.'))
+			END,
+
+			T1.TIEMPO_DEMORA_MINUTOS
+
+		FROM
+		DatosBrutos_RutaDigital T1
+		INNER JOIN Dim_Tiempo DT_Reg 
+			ON DT_Reg.Fecha = TRY_CONVERT(DATE,T1.FECHA_REGISTRO)
+		LEFT JOIN Dim_Tiempo DT_Ini
+			ON DT_Ini.Fecha = TRY_CONVERT(DATE,T1.FECHA_INICIO)
+		LEFT JOIN Dim_Tiempo DT_Fin
+			ON DT_Fin.Fecha = TRY_CONVERT(DATE,T1.FECHA_FIN)
+
+		LEFT JOIN Dim_CIIU DC
+			ON	 DC.CIIU = UPPER(TRIM(T1.CIIU))
+
+		INNER JOIN Dim_TipoEmpresa DTE
+				ON DTE.TipoEmpresa = UPPER(TRIM(T1.TIPO))
+		INNER JOIN Dim_Ubicacion DU
+			ON	 DU.Ubigeo = UPPER(TRIM(T1.UBIGEO))
+		INNER JOIN Dim_NivelDigitalizacion DND
+			ON DND.NivelDigitalizacion = UPPER(TRIM(REPLACE(T1.NIVEL_DIGITALIZACION,'+í','á')))
+	   	 
+		COMMIT TRANSACTION;
+	END TRY
+
+	BEGIN CATCH
+		IF @@TRANCOUNT > 0
+		BEGIN
+			ROLLBACK TRANSACTION;
+		END
+
+		PRINT '--- ERROR FATAL EN EL PROCESO ETL ---';
+		PRINT 'La transacción fue revertida (ROLLBACK).';
+		PRINT 'Mensaje: ' + ERROR_MESSAGE();
+		PRINT 'Línea: ' + CAST(ERROR_LINE() AS NVARCHAR(10));
+		
+		-- Lanza el error para que sea capturado por el sistema
+		THROW; 
+
+	END CATCH
+
+END
+GO
+
+-- 8. EJECUCIÓN DEL SP Y VERIFICACIÓN DE INSERCIÓN DE REGISTROS A LA TABLA DE HECHOS
+EXECUTE sp_CargarDataMart
+GO
+
+
+SELECT COUNT(*) AS TotalRegistros
+FROM hechos_Digitalizacion;
+GO
+
