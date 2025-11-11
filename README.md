@@ -61,6 +61,10 @@ El flujo de trabajo demuestra el dominio del ciclo de BI completo (ETL, Modelado
 
 La siguiente sección muestra la navegación dinámica  y el filtrado interactivo del Monitor Ejecutivo.
 
+<img width="1295" height="703" alt="image" src="https://github.com/user-attachments/assets/4c15c5c0-8077-41d9-b3da-70f36f4c2256" />
+
+
+
 https://github.com/user-attachments/assets/7c1d9126-ad66-49d6-a012-1c3bdc408e84
 
 
