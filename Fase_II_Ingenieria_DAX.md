@@ -1,4 +1,4 @@
-# FASE II - INGENIERÍA DAX Y MODELADO BI
+# FASE II: INGENIERÍA DAX Y MODELADO BI
 
 Esta documentación describe el proceso de construcción de la capa semántica (DAX) en Power BI, esencial para las métricas, tendencias y el comportamiento dinámico del dashboard.
 
