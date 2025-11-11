@@ -1,27 +1,25 @@
 ## **🚀 MONITOR DE MADUREZ DIGITAL: DESEMPEÑO Y ALCANCE DEL PROGRAMA RUTA DIGITAL (2021-2024)**
 
-> **Tecnologías:** SQL Server, Power BI, DAX, Modelado Dimensional
-
 > **Objetivo:** Implementar una solución integral de Business Intelligence para **analizar los resultados del Test de Madurez Digital** y diagnosticar el nivel de digitalización de las MYPES del programa Ruta Digital.
 
 ---
 
-## 1. 🔍 CONTEXTO, ANÁLISIS Y VALOR ESTRATÉGICO
+## 1. 🔍 CONTEXTO ESTRATÉGICO Y MECÁNICA DEL DIAGNÓSTICO 🇵🇪
 
-### 1.1. Objeto del Análisis y Contexto del Programa
+### 1.1. Importancia del Programa Ruta Digital y el Test de Madurez
 
-El proyecto se enfoca en el **análisis de la base de datos de los resultados del Test de Madurez Digital de las MYPES a nivel nacional** que se encuentran dentro del programa **Ruta Digital** (periodo 2021-2024).
+Este proyecto se fundamenta en los resultados del **Test de Diagnóstico de Madurez Digital**, una herramienta clave del programa **Ruta Digital** del Ministerio de la Producción (PRODUCE).
 
-* **Fuente:** Portal de **Datos Abiertos del Gobierno del Perú**.
-* **Alcance:** Consolidación de **13,944 registros** de evaluaciones limpias, cubriendo el período **2021 a 2024**.
+* **¿Qué es el Test?** Es un instrumento diseñado por PRODUCE para evaluar la situación actual de las MYPES peruanas en **6 dominios digitales críticos** (Ej: Gestión, Finanzas, Comercio Electrónico).
+* **Propósito y Objetivos de PRODUCE:** El objetivo es doble: 1) Proporcionar a la MYPE una hoja de ruta para su transformación digital. 2) Dotar a PRODUCE de datos cuantitativos para **justificar y planificar estratégicamente** las acciones de capacitación y fomento, **focalizando la ayuda** donde es más necesaria.
+* **Contexto del Dato:** La base de datos contiene **13,944 resultados** de MYPES (2021-2024), siendo la fuente directa para este diagnóstico.
 
 ### 1.2. Justificación del Monitoreo
 
 El dashboard es un sistema de **diagnóstico dinámico** que permite:
 
-1.  **Análisis de Resultados:** El foco es determinar el nivel de las MYPES y potenciar sus capacidades, según el resultado del test de diagnóstico.
-2.  **Diagnóstico de Brecha:** El Gráfico de Brecha Tecnológica identifica el **dominio más débil** para un sector económico específico (`CIIU`).
-3.  **Auditoría de Rendimiento:** El **Gráfico Combinado** monitorea la **Evolución Dual** (`Avg Score` vs. `Total MYPES`) para evaluar la calidad de la muestra y el crecimiento del programa.
+1.  **Diagnóstico de Brecha (KPIs Ejecutivos):** Identificar el dominio tecnológico más débil (el que arroja el *score* más bajo) para un sector (`CIIU`) o región específica.
+2.  **Focalización:** Permite determinar el nivel de las MYPES y potenciar sus capacidades con recursos de capacitación dirigidos.
 
 ---
 
@@ -41,23 +39,30 @@ El flujo de trabajo demuestra el dominio del ciclo de BI completo (ETL, Modelado
 
 ### [FASE I: ETL y Modelado SQL]
 
-* **Modelo Dimensional:** Implementación de un **Esquema Copo de Nieve** (`Dim_Calendario` $\rightarrow$ `Dim_Tiempo`) y Estrella (`Dim_Ubicacion`, `Dim_CIIU`, etc.).
-* **Integridad Crítica:** Se resolvió el fallo de protocolo de carga de **7,254 registros** mediante la sincronización de la lógica de limpieza en el `INNER JOIN`.
-* **Calidad de Datos:** Uso de `REPLACE(',', '.')` para corregir la ambigüedad del formato decimal en los *scores*.
+* **Modelo Dimensional:** Implementación del **Esquema Estrella** en SQL, creando las tablas de Hechos y Dimensiones (Dim_Ubicacion, Dim_CIIU, etc.) optimizadas para consultas BI.
+* **Calidad de Datos:** Se implementaron procedimientos de validación y limpieza (`TRIM/UPPER`) en el Stored Procedure para asegurar la **carga y consistencia del 100%** de los 13,944 registros en el Data Mart.
+* **Normalización:** Uso de `REPLACE(',', '.')` dentro del SP para corregir la ambigüedad del formato decimal en los *scores* y garantizar cálculos precisos.
 
 ### [FASE II: Ingeniería DAX y BI]
 
-* **Control Temporal (DAX):** Creación de la tabla maestra `Dim_Calendario` con la función **`CALENDAR(2021, 1, 1), DATE(2024, 12, 31)`** para limitar el rango de análisis y evitar el problema del año 2025.
-* **Métricas Esenciales:** Creación de **9 métricas DAX**, incluyendo las **6 métricas de Dominio** para el diagnóstico de Brecha.
+* **Control Temporal (DAX):** Creación de la tabla maestra `Dim_Calendario` con la función `CALENDAR(...)`. El modelo adquiere la estructura **Copo de Nieve** al vincular esta dimensión (creada en DAX) a la `Dim_Tiempo` (cargada desde SQL).
+* **Métricas Esenciales:** Creación de **9 métricas DAX** (incluyendo las 6 métricas de Dominio) para el diagnóstico de Brecha.
 * **Usabilidad (UX Fix):** Se aplicó **"Ordenar por Columna"** para corregir el orden alfabético de los meses.
 
 ### [FASE III: Diseño Ejecutivo (UX)]
 
-* **Diseño Final:** Scorecard Consolidado de una sola página, con diseño de **alto contraste** y una cuadrícula de 4 filas y 12 columnas.
+* **Diseño Final:** Scorecard Consolidado de una sola página, con diseño de **alto contraste** y una jerarquía visual clara.
 * **Mapa de Formas:** Implementación de geometría GeoJSON personalizada para el análisis de saturación de color por departamento.
 * **Navegación Dinámica:** El **Gráfico Combinado** fue configurado para **Drill Down** (navegación de **Año a Mes**).
 
 ---
+
+## 🎥 DEMOSTRACIÓN DE INTERACCIÓN
+
+La siguiente sección muestra la navegación dinámica  y el filtrado interactivo del Monitor Ejecutivo.
+
+https://github.com/user-attachments/assets/7c1d9126-ad66-49d6-a012-1c3bdc408e84
+
 
 ## 4. 📦 ARTEFACTOS Y RECOMENDACIONES FINALES
 
@@ -67,6 +72,7 @@ El flujo de trabajo demuestra el dominio del ciclo de BI completo (ETL, Modelado
 | **`RutaDigital_DataMart_SQL.sql`** | Script SQL completo (DDL y Procedimiento de Carga). | Dominio de **ETL y Arquitectura Dimensional**. |
 | **`Fase_I_Limpieza_Modelado.md`** | **Documentación del ETL** y **Esquema Dimensional**. | Muestra la metodología de limpieza y el diseño del modelo. |
 | **`Fase_II_Ingenieria_DAX.md`** | Documentación de la lógica DAX. | Evidencia del **pensamiento analítico** y la construcción de métricas. |
-| **`Images/01_Dashboard_Final.png`** | Captura del Dashboard Consolidado. | Evidencia la **habilidad de diseño y UX**. |
-| **`Images/02_Modelo_Datos.png`** | Captura de la **Vista de Modelo** en Power BI. | Muestra la correcta implementación de las **relaciones (1:\*)** y el esquema Copo de Nieve. |
-| **`Images/03_Brecha_Digital.png`** | Captura del **Gráfico de Brecha** filtrado. | Documenta la **capacidad analítica** para diagnosticar debilidades. |
+| **`Fase_III_Diseno_Ejecutivo.md`** | **Documentación de Diseño y UX**. | Muestra la implementación de visuales avanzados (GeoJSON). |
+| **`Dashboard_RutaDigital.png`** | Captura del Dashboard Consolidado. | Evidencia la **habilidad de diseño y UX**. |
+| **`Modelo_Datos_CopoNieve.png`** | Captura de la **Vista de Modelo** en Power BI. | Muestra la correcta implementación de las **relaciones (1:\*)** y el esquema Copo de Nieve. |
+
