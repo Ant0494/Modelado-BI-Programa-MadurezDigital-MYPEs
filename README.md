@@ -31,7 +31,7 @@ El flujo de trabajo demuestra el dominio del ciclo de BI completo (ETL, Modelado
 | :--- | :--- | :--- | :--- |
 | **FASE I** | **ETL y Modelado SQL** | Arquitectura Dimensional (Copo de Nieve), Calidad de Datos. | **[Fase_I_Limpieza_Modelado](Fase_I_Limpieza_Modelado.md)** y **[Script SQL](RutaDigital_DataMart_SQL.sql)** |
 | **FASE II** | **Ingeniería DAX y BI** | Creación de **9 métricas** clave, Solución de Ambigüedades Temporales. | **[Fase_II_Ingenieria_DAX](Fase_II_Ingenieria_DAX.md)** |
-| **FASE III** | **Diseño Ejecutivo (UX)** | Scorecard Consolidado de una página, Navegación Dinámica. | **[Fase_III_Diseno_Ejecutivo](Fase_III_Diseno_Ejecutivo.md)** y **[Dashboard Final](RutaDigital_Dashboard.pbix)** |
+| **FASE III** | **Diseño Ejecutivo (UX)** | Scorecard Consolidado de una página, Navegación Dinámica. | **[Fase_III_Diseno_Ejecutivo](Fase_III_Diseno_Ejecutivo.md)** y **[Dashboard Final](Dashboard_RutaDigitalvf.pbix)** |
 
 ---
 
